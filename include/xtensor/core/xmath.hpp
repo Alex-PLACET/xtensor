@@ -35,6 +35,9 @@
 
 namespace xt
 {
+    template <class CTD, class CTM>
+    class xmasked_view;
+
     template <class T = double>
     struct numeric_constants
     {
@@ -1675,6 +1678,13 @@ namespace xt
     inline auto isfinite(E&& e) noexcept -> detail::xfunction_type_t<math::isfinite_fun, E>
     {
         return detail::make_xfunction<math::isfinite_fun>(std::forward<E>(e));
+    }
+
+    template <class CTD, class CTM>
+    inline auto isfinite(const xmasked_view<CTD, CTM>& e) noexcept
+        -> detail::xfunction_type_t<math::isfinite_fun, const xmasked_view<CTD, CTM>&>
+    {
+        return detail::make_xfunction<math::isfinite_fun>(e);
     }
 
     /**

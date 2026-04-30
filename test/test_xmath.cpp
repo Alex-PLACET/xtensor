@@ -15,6 +15,7 @@
 #include "xtensor/core/xmath.hpp"
 #include "xtensor/generators/xrandom.hpp"
 #include "xtensor/optional/xoptional_assembly.hpp"
+#include "xtensor/views/xmasked_view.hpp"
 
 #include "test_common_macros.hpp"
 
@@ -280,6 +281,18 @@ namespace xt
         };
         xarray<bool> expected{{false, true}, {true, false}};
         EXPECT_TRUE(all(equal(expected, xt::isnan(arr))));
+    }
+
+    TEST(xmath, isfinite_masked_view_unqualified)
+    {
+        xarray<double> data{1.0, std::numeric_limits<double>::infinity()};
+        xarray<bool> mask{true, false};
+        auto masked = xt::masked_view(data, mask);
+        auto missing = xtl::masked<xtl::xoptional<bool, bool>>();
+
+        auto result = isfinite(masked);
+        EXPECT_EQ(result(0), true);
+        EXPECT_EQ(result(1), missing);
     }
 
     TEST(xmath, deg2rad)
