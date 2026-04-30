@@ -28,7 +28,7 @@
 #include "xtensor/generators/xbuilder.hpp"
 #include "xtensor/generators/xrandom.hpp"
 #include "xtensor/misc/xmanipulation.hpp"
-#include "xtensor/views/index_mapper.hpp"
+#include "xtensor/views/xindex_mapper.hpp"
 #include "xtensor/views/xstrided_view.hpp"
 #include "xtensor/views/xview.hpp"
 

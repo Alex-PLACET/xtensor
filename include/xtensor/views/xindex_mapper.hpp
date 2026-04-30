@@ -82,7 +82,10 @@ namespace xt
          * when given N indices in the view.
          */
         template <std::integral... Indices>
-        static constexpr size_t n_indices_full_v = size_t(sizeof...(Indices) + nb_integral_slices);
+        static consteval size_t n_indices_full()
+        {
+            return sizeof...(Indices) + nb_integral_slices;
+        }
 
         /**
          * @brief Map view indices to container reference using UNSAFE access.
@@ -263,7 +266,7 @@ namespace xt
 
         /// @brief Expand view indices into a full index array, inserting dummy indices for integral slices
         template <std::integral... Indices>
-        std::array<size_t, n_indices_full_v<Indices...>> get_indices_full(const Indices... indices) const;
+        std::array<size_t, n_indices_full<Indices...>()> get_indices_full(const Indices... indices) const;
     };
 
     /*******************************
@@ -302,12 +305,12 @@ namespace xt
     template <std::integral... Indices>
     auto
     index_mapper<xt::xview<UnderlyingContainer, Slices...>>::get_indices_full(const Indices... indices) const
-        -> std::array<size_t, n_indices_full_v<Indices...>>
+        -> std::array<size_t, n_indices_full<Indices...>()>
     {
-        constexpr size_t n_indices_full = n_indices_full_v<Indices...>;
+        constexpr size_t full_index_count = n_indices_full<Indices...>();
 
         std::array<size_t, sizeof...(indices)> args{size_t(indices)...};
-        std::array<size_t, n_indices_full> args_full;
+        std::array<size_t, full_index_count> args_full;
 
         const auto fill_args_full = [&args_full, &args]<size_t... Is>(std::index_sequence<Is...>)
         {
@@ -316,7 +319,7 @@ namespace xt
             ((args_full[Is] = (is_slice_integral<Is>()) ? size_t(0) : *it++), ...);
         };
 
-        fill_args_full(std::make_index_sequence<n_indices_full>{});
+        fill_args_full(std::make_index_sequence<full_index_count>{});
 
         return args_full;
     }
@@ -400,7 +403,7 @@ namespace xt
         const OtherIndices... otherIndices
     ) const -> conditional_reference<IS_CONST>
     {
-        constexpr size_t n_indices_full = n_indices_full_v<FirstIndice, OtherIndices...>;
+        constexpr size_t full_index_count = n_indices_full<FirstIndice, OtherIndices...>();
 
         constexpr size_t underlying_n_dimensions = xt::static_dimension<
             typename std::decay_t<UnderlyingContainer>::shape_type>::value;
@@ -427,7 +430,7 @@ namespace xt
                     container,
                     access,
                     view,
-                    indices_sequence<n_indices_full>{},
+                    indices_sequence<full_index_count>{},
                     get_indices_full(firstIndice, otherIndices...)
                 );
             }
@@ -446,7 +449,7 @@ namespace xt
                     container,
                     access,
                     view,
-                    indices_sequence<n_indices_full>{},
+                    indices_sequence<full_index_count>{},
                     get_indices_full(firstIndice, otherIndices...)
                 );
             }
@@ -462,7 +465,7 @@ namespace xt
         const view_type& view
     ) const -> conditional_reference<IS_CONST>
     {
-        constexpr size_t n_indices_full = n_indices_full_v<>;
+        constexpr size_t n_indices_full = nb_integral_slices;
 
         return map_all_indices(
             is_const,
