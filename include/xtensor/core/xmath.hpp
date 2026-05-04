@@ -1682,7 +1682,7 @@ namespace xt
 
     template <class CTD, class CTM>
     inline auto isfinite(const xmasked_view<CTD, CTM>& e) noexcept
-        -> detail::xfunction_type_t<math::isfinite_fun, const xmasked_view<CTD, CTM>&>
+        -> decltype(detail::make_xfunction<math::isfinite_fun>(e))
     {
         return detail::make_xfunction<math::isfinite_fun>(e);
     }
