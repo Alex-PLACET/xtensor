@@ -193,7 +193,7 @@ namespace xt
          * @throws Assertion failure if `i != 0` for integral slices.
          * @throws Assertion failure if `i >= slice.size()` for non-integral slices.
          */
-        template <size_t I, std::integral Index>
+        template <size_t I, access_t ACCESS, std::integral Index>
         size_t map_ith_index(const view_type& view, const Index i) const;
 
         /**
@@ -490,16 +490,16 @@ namespace xt
     {
         if constexpr (ACCESS == access_t::SAFE)
         {
-            return container.at(map_ith_index<Is>(view, indices[Is])...);
+            return container.at(map_ith_index<Is, ACCESS>(view, indices[Is])...);
         }
         else
         {
-            return container(map_ith_index<Is>(view, indices[Is])...);
+            return container(map_ith_index<Is, ACCESS>(view, indices[Is])...);
         }
     }
 
     template <class UnderlyingContainer, class... Slices>
-    template <size_t I, std::integral Index>
+    template <size_t I, access_t ACCESS, std::integral Index>
     auto
     index_mapper<xt::xview<UnderlyingContainer, Slices...>>::map_ith_index(const view_type& view, const Index i) const
         -> size_t
@@ -515,14 +515,51 @@ namespace xt
 
             if constexpr (std::is_integral_v<current_slice>)
             {
-                assert(i == 0);
+                if constexpr (ACCESS == access_t::SAFE)
+                {
+                    if (i != 0)
+                    {
+                        XTENSOR_THROW(std::out_of_range, "Index out of range in index_mapper access");
+                    }
+                }
+                else
+                {
+                    assert(i == 0);
+                }
                 return size_t(slice);
+            }
+            else if constexpr (xt::detail::is_xall_slice<std::decay_t<current_slice>>::value)
+            {
+                return size_t(i);
             }
             else
             {
                 using slice_size_type = typename current_slice::size_type;
-                assert(i < slice.size());
-                return size_t(slice(static_cast<slice_size_type>(i)));
+                const auto slice_index = static_cast<slice_size_type>(i);
+
+                if constexpr (ACCESS == access_t::SAFE)
+                {
+                    if constexpr (std::is_signed_v<slice_size_type>)
+                    {
+                        if (slice_index < 0 || slice_index >= slice.size())
+                        {
+                            XTENSOR_THROW(std::out_of_range, "Index out of range in index_mapper access");
+                        }
+                    }
+                    else if (slice_index >= slice.size())
+                    {
+                        XTENSOR_THROW(std::out_of_range, "Index out of range in index_mapper access");
+                    }
+                }
+                else
+                {
+                    if constexpr (std::is_signed_v<slice_size_type>)
+                    {
+                        assert(slice_index >= 0);
+                    }
+                    assert(slice_index < slice.size());
+                }
+                return size_t(slice(slice_index));
             }
         }
         else
