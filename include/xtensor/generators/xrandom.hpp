@@ -243,6 +243,19 @@ namespace xt
         };
     }
 
+    /*************************************
+     * overlapping_memory_checker_traits *
+     *************************************/
+
+    template <class T, class E, class D>
+    struct overlapping_memory_checker_traits<detail::random_impl<T, E, D>>
+    {
+        static bool check_overlap(const detail::random_impl<T, E, D>&, const memory_range&)
+        {
+            return false;
+        }
+    };
+
     namespace random
     {
         /**

@@ -380,6 +380,15 @@ namespace xt
         XT_EXPECT_ANY_THROW(xt::concatenate(xt::xtuple(fa, ta)));
     }
 
+    TEST(xbuilder, concatenate_assign_to_argument)
+    {
+        xarray<int> a = xt::ones<int>({4});
+        xarray<int> b = xt::ones<int>({3});
+
+        a = xt::concatenate(xt::xtuple(a, b));
+        ASSERT_EQ(a, xt::ones<int>({7}));
+    }
+
     template <std::size_t... I, std::size_t... J>
     bool operator==(fixed_shape<I...>, fixed_shape<J...>)
     {

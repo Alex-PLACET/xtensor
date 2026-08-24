@@ -354,6 +354,11 @@ namespace xt
                 return access_impl(first, last);
             }
 
+            const F& functor() const noexcept
+            {
+                return m_ft;
+            }
+
         private:
 
             F m_ft;
@@ -647,6 +652,11 @@ namespace xt
                 return access_method.access(m_t, m_axis, first, last);
             }
 
+            const tuple_type& tuple() const noexcept
+            {
+                return m_t;
+            }
+
         private:
 
             F<CT...> access_method;
@@ -690,6 +700,11 @@ namespace xt
             inline value_type element(It first, It) const
             {
                 return m_source(*(first + static_cast<std::ptrdiff_t>(m_axis)));
+            }
+
+            const xexpression_type& source() const noexcept
+            {
+                return m_source;
             }
 
         private:
@@ -1062,6 +1077,11 @@ namespace xt
                 return m_source[idx];
             }
 
+            const xexpression_type& source() const noexcept
+            {
+                return m_source;
+            }
+
         private:
 
             CT m_source;
@@ -1100,6 +1120,11 @@ namespace xt
                 }
             }
 
+            const xexpression_type& source() const noexcept
+            {
+                return m_source;
+            }
+
         private:
 
             CT m_source;
@@ -1132,6 +1157,11 @@ namespace xt
                            : value_type(0);
             }
 
+            const xexpression_type& source() const noexcept
+            {
+                return m_source;
+            }
+
         private:
 
             CT m_source;
@@ -1139,6 +1169,96 @@ namespace xt
             const Comp m_comp;
         };
     }
+
+    /*************************************
+     * overlapping_memory_checker_traits *
+     *************************************/
+
+    template <class F>
+    struct overlapping_memory_checker_traits<detail::fn_impl<F>>
+    {
+        static bool check_overlap(const detail::fn_impl<F>& fn, const memory_range& dst_range)
+        {
+            return overlapping_memory_checker_traits<F>::check_overlap(fn.functor(), dst_range);
+        }
+    };
+
+    template <class T>
+    struct overlapping_memory_checker_traits<detail::eye_fn<T>>
+    {
+        static bool check_overlap(const detail::eye_fn<T>&, const memory_range&)
+        {
+            return false;
+        }
+    };
+
+    template <class T, class R, class S>
+    struct overlapping_memory_checker_traits<detail::arange_generator<T, R, S>>
+    {
+        static bool check_overlap(const detail::arange_generator<T, R, S>&, const memory_range&)
+        {
+            return false;
+        }
+    };
+
+    template <class CT>
+    struct overlapping_memory_checker_traits<detail::diagonal_fn<CT>>
+    {
+        static bool check_overlap(const detail::diagonal_fn<CT>& fn, const memory_range& dst_range)
+        {
+            return overlapping_memory_checker_traits<std::decay_t<CT>>::check_overlap(fn.source(), dst_range);
+        }
+    };
+
+    template <class CT>
+    struct overlapping_memory_checker_traits<detail::diag_fn<CT>>
+    {
+        static bool check_overlap(const detail::diag_fn<CT>& fn, const memory_range& dst_range)
+        {
+            return overlapping_memory_checker_traits<std::decay_t<CT>>::check_overlap(fn.source(), dst_range);
+        }
+    };
+
+    template <class CT, class Comp>
+    struct overlapping_memory_checker_traits<detail::trilu_fn<CT, Comp>>
+    {
+        static bool check_overlap(const detail::trilu_fn<CT, Comp>& fn, const memory_range& dst_range)
+        {
+            return overlapping_memory_checker_traits<std::decay_t<CT>>::check_overlap(fn.source(), dst_range);
+        }
+    };
+
+    template <class CT>
+    struct overlapping_memory_checker_traits<detail::repeat_impl<CT>>
+    {
+        static bool check_overlap(const detail::repeat_impl<CT>& fn, const memory_range& dst_range)
+        {
+            return overlapping_memory_checker_traits<std::decay_t<CT>>::check_overlap(fn.source(), dst_range);
+        }
+    };
+
+    template <template <class...> class F, class... CT>
+    struct overlapping_memory_checker_traits<detail::concatenate_invoker<F, CT...>>
+    {
+        template <std::size_t I = 0, class... T, std::enable_if_t<(I == sizeof...(T)), int> = 0>
+        static bool check_tuple(const std::tuple<T...>&, const memory_range&)
+        {
+            return false;
+        }
+
+        template <std::size_t I = 0, class... T, std::enable_if_t<(I < sizeof...(T)), int> = 0>
+        static bool check_tuple(const std::tuple<T...>& t, const memory_range& dst_range)
+        {
+            using child_t = std::decay_t<decltype(std::get<I>(t))>;
+            return overlapping_memory_checker_traits<child_t>::check_overlap(std::get<I>(t), dst_range)
+                   || check_tuple<I + 1>(t, dst_range);
+        }
+
+        static bool check_overlap(const detail::concatenate_invoker<F, CT...>& fn, const memory_range& dst_range)
+        {
+            return check_tuple(fn.tuple(), dst_range);
+        }
+    };
 
     namespace detail
     {

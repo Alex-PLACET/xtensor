@@ -85,9 +85,10 @@ namespace xt
         requires(!addressable_to_expression<std::decay_t<E>>)
     struct overlapping_memory_checker_traits<E>
     {
-        static bool check_overlap(const E&, const memory_range&)
+        static bool check_overlap(const E& expr, const memory_range& dst_range)
         {
-            return false;
+            using functor_type = typename std::decay_t<E>::functor_type;
+            return overlapping_memory_checker_traits<functor_type>::check_overlap(expr.functor(), dst_range);
         }
     };
 
