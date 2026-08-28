@@ -803,33 +803,62 @@ namespace xt
         auto src = linear_begin(e2);
         auto dst = linear_begin(e1);
         size_type n = e1.size();
+        // The flag storage of optional containers is an xtl::xdynamic_bitset whose
+        // bit-level read-modify-write is not thread-safe (xtl#240): concurrent writes
+        // from the parallel loop can lose bits, making elements randomly read as
+        // missing. Keep optional destinations serial (xtensor#2653).
+        constexpr bool is_optional_dst = std::is_same<typename E1::expression_tag, xoptional_expression_tag>::value;
 #if defined(XTENSOR_USE_TBB)
-        tbb::static_partitioner sp;
-        tbb::parallel_for(
-            std::ptrdiff_t(0),
-            static_cast<std::ptrdiff_t>(n),
-            [&](std::ptrdiff_t i)
-            {
-                *(dst + i) = static_cast<value_type>(*(src + i));
-            },
-            sp
-        );
-#elif defined(XTENSOR_USE_OPENMP)
-        if (n >= XTENSOR_OPENMP_TRESHOLD)
-        {
-#pragma omp parallel for default(none) shared(src, dst, n)
-            for (std::ptrdiff_t i = std::ptrdiff_t(0); i < static_cast<std::ptrdiff_t>(n); i++)
-            {
-                *(dst + i) = static_cast<value_type>(*(src + i));
-            }
-        }
-        else
+        if constexpr (is_optional_dst)
         {
             for (; n > size_type(0); --n)
             {
                 *dst = static_cast<value_type>(*src);
                 ++src;
                 ++dst;
+            }
+        }
+        else
+        {
+            tbb::static_partitioner sp;
+            tbb::parallel_for(
+                std::ptrdiff_t(0),
+                static_cast<std::ptrdiff_t>(n),
+                [&](std::ptrdiff_t i)
+                {
+                    *(dst + i) = static_cast<value_type>(*(src + i));
+                },
+                sp
+            );
+        }
+#elif defined(XTENSOR_USE_OPENMP)
+        if constexpr (is_optional_dst)
+        {
+            for (; n > size_type(0); --n)
+            {
+                *dst = static_cast<value_type>(*src);
+                ++src;
+                ++dst;
+            }
+        }
+        else
+        {
+            if (n >= XTENSOR_OPENMP_TRESHOLD)
+            {
+#pragma omp parallel for default(none) shared(src, dst, n)
+                for (std::ptrdiff_t i = std::ptrdiff_t(0); i < static_cast<std::ptrdiff_t>(n); i++)
+                {
+                    *(dst + i) = static_cast<value_type>(*(src + i));
+                }
+            }
+            else
+            {
+                for (; n > size_type(0); --n)
+                {
+                    *dst = static_cast<value_type>(*src);
+                    ++src;
+                    ++dst;
+                }
             }
         }
 #else
